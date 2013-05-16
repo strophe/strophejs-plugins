@@ -37,6 +37,9 @@ https://github.com/metajack/strophejs-plugins .
 
 - [Publish-Subscribe](/pubsub/)
   ([XEP 0060](http://xmpp.org/extensions/xep-0060.html))
+  
+- [Out of Band Data](/outofband/)
+  ([XEP 0066](http://xmpp.org/extensions/xep-0066.html))
 
 - [Jabber Object Access Protocol](/joap/)
   ([XEP 0075](http://xmpp.org/extensions/xep-0075.html))
