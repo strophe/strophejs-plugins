@@ -363,7 +363,7 @@ Strophe.addConnectionPlugin("rpc", {
 
     // Method name
     var method = iq.getElementsByTagName("methodName")[0];
-    rpc.method = method ? method.textContent : null;
+    rpc.method = method ? Strophe.getText(method) : null;
 
     // Parameters
     rpc.params = null;
@@ -419,15 +419,15 @@ Strophe.addConnectionPlugin("rpc", {
         case "double":
         case "i4":
         case "int":
-          var number = obj.textContent;
+          var number = Strophe.getText(obj);
           data = number * 1;
           break;
         case "boolean":
-          var bool = obj.textContent;
+          var bool = Strophe.getText(obj);
           data = (bool === "1" || bool === "true") ? true : false;
           break;
         case "datetime.iso8601":
-          var date = obj.textContent;
+          var date = Strophe.getText(obj);
           data = new Date();
           data.setFullYear(date.substring(0,4), date.substring(4,6) - 1, date.substring(6,8));
           data.setHours(date.substring(9,11), date.substring(12,14), date.substring(15,17));
@@ -443,13 +443,13 @@ Strophe.addConnectionPlugin("rpc", {
         case "struct":
           data = {};
           for (var j = 0; j < obj.childNodes.length; j++) {
-            var membername  = obj.childNodes[j].getElementsByTagName("name")[0].textContent;
+            var membername  = Strophe.getText(obj.childNodes[j].getElementsByTagName("name")[0]);
             var membervalue = obj.childNodes[j].getElementsByTagName("value")[0].firstChild;
             data[membername] = membervalue ? this._convertFromXML(membervalue) : null;
           }
           break;
         case "string":
-          data = obj.textContent;
+          data = Strophe.getText(obj);
           break;
         default:
           data = null;
