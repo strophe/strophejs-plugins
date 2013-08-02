@@ -87,6 +87,8 @@ https://github.com/metajack/strophejs-plugins .
 - [iexdomain](/iexdomain/) - Support for IE
   XDomainRequest
 
+- [customheaders](/customheaders/) - Support for sending custon HTTP Headers with all requests
+
 ## Contribute
 
 If you would like to make your plugin available here, simply fork this
