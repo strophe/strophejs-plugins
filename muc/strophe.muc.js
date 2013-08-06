@@ -40,9 +40,11 @@ Strophe.addConnectionPlugin('muc', {
   (Function) roster_cb - The function call to handle roster info in the chat room
   (String) password - The optional password to use. (password protected
   rooms only)
+  (Object) history_attrs - Optional attributes for retrieving history
+  (XML DOM Element) extended_presence - Optional XML for extending presence
   */
 
-  join: function(room, nick, msg_handler_cb, pres_handler_cb, roster_cb, password, history_attrs) {
+  join: function(room, nick, msg_handler_cb, pres_handler_cb, roster_cb, password, history_attrs, extended_presence) {
     var msg, room_nick, _ref,
       _this = this;
     room_nick = this.test_append_nick(room, nick);
@@ -53,10 +55,13 @@ Strophe.addConnectionPlugin('muc', {
       xmlns: Strophe.NS.MUC
     });
     if (history_attrs != null) {
-      msg = msg.c("history", history_attrs);
+      msg = msg.c("history", history_attrs).up();
     }
     if (password != null) {
       msg.cnode(Strophe.xmlElement("password", [], password));
+    }
+    if (extended_presence != null) {
+      msg.up().cnode(extended_presence);
     }
     if ((_ref = this._muc_handler) == null) {
       this._muc_handler = this._connection.addHandler(function(stanza) {

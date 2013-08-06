@@ -38,6 +38,8 @@ Strophe.addConnectionPlugin 'muc'
   (Function) roster_cb - The function call to handle roster info in the chat room
   (String) password - The optional password to use. (password protected
   rooms only)
+  (Object) history_attrs - Optional attributes for retrieving history
+  (XML DOM Element) extended_presence - Optional XML for extending presence
   ###
   join: (room, nick, msg_handler_cb, pres_handler_cb, roster_cb, password, history_attrs) ->
     room_nick = @test_append_nick(room, nick)
@@ -47,10 +49,13 @@ Strophe.addConnectionPlugin 'muc'
     .c("x", xmlns: Strophe.NS.MUC)
 
     if history_attrs?
-      msg = msg.c("history", history_attrs)
+      msg = msg.c("history", history_attrs).up
 
     if password?
       msg.cnode Strophe.xmlElement("password", [], password)
+
+    if extended_presence?
+      msg.up.cnode extended_presence
 
     # One handler for all rooms that dispatches to room callbacks
     @_muc_handler ?=  @_connection.addHandler (stanza) =>
