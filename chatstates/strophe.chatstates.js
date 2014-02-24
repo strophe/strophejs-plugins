@@ -29,27 +29,28 @@ Strophe.addConnectionPlugin('chatstates',
 	_notificationReceived: function(message)
 	{
 		var composing = $(message).find('composing'),
-		paused = $(message).find('paused'),
-		active = $(message).find('active'),
-		jid = $(message).attr('from');
+			paused = $(message).find('paused'),
+			active = $(message).find('active'),
+			jid = $(message).attr('from');
 
-		if (composing.length > 0)
-		{
-			$(document).trigger('composing.chatstates', jid);
+		if (composing.length > 0) {
+			this.onComposing(jid);
 		}
 
-		if (paused.length > 0)
-		{
-			$(document).trigger('paused.chatstates', jid);
+		if (paused.length > 0) {
+			this.onPaused(jid);
 		}
 
-		if (active.length > 0)
-		{
-			$(document).trigger('active.chatstates', jid);
+		if (active.length > 0) {
+			this.onActive(jid);
 		}
 
 		return true;
 	},
+
+	onActive: function (jid) {},
+	onComposing: function (jid) {},
+	onPaused: function (jid) {},
 
 	sendActive: function(jid, type)
 	{
