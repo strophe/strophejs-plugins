@@ -212,7 +212,7 @@ Strophe.addConnectionPlugin('register', {
      *    false to remove SHOULD contain the registration information currentlSHOULD contain the registration information currentlSHOULD contain the registration information currentlthe handler.
      */
     _get_register_cb: function (stanza) {
-        var i, query, field, conn = this._connection;
+        var i, query, xElements;
         query = stanza.getElementsByTagName("query");
 
         if (query.length !== 1) {
@@ -220,16 +220,86 @@ Strophe.addConnectionPlugin('register', {
             return false;
         }
         query = query[0];
+
+        xElements = query.getElementsByTagName('x');
+
+        // There might be multiple "x" elements, one with namespace
+        // jabber:x:data (the form) and one with namespace x:oop (url with
+        // instructions)
+        for (i = 0; i < xElements.length; i++) {
+            
+            if ('jabber:x:data' === xElements[i].getAttribute('xmlns')) {
+                return this._parseXForm(xElements[i]);
+            }
+        }
+        
+        // If no jabber:x:data field was found, parse lagacy fields
+        return this._parseLegacyForm(query);
+    },
+    
+    _parseXForm: function(xElement) {
+        var i, field, tagName, type, variable, label, value, conn = this._connection;
+
+        
+        for (i = 0; i < xElement.childNodes.length; i++) {
+            // Parse all the info from the current field
+            field = xElement.childNodes[i];
+            tagName = field.tagName.toLowerCase();
+            type = field.hasAttribute('type') ? field.getAttribute('type') : '';
+            label = field.hasAttribute('label') ? field.getAttribute('label') : '';
+            variable = field.hasAttribute('var') ? field.getAttribute('var') : '';
+
+            value = '';
+            if (   0 < field.childNodes.length
+                && 'value' === field.childNodes[0].tagName) {
+                value = Strophe.getText(field.childNodes[0]);
+            }
+
+            // Now do the actual logic
+            if (   'instructions' === tagName
+                || 'title' === tagName) {
+                // This is a special element
+                // It provides info about given data fields in a textual way.
+                conn.register[tagName] = Strophe.getText(field);
+            }
+            else if (   'hidden' === type
+                     || 'FORM_TYPE' === variable) {
+
+                // Check that the form type is correct. If not, abort.
+                if ('jabber:iq:register' !== value) {
+                    conn._changeConnectStatus(Strophe.Status.REGIFAIL, null);
+                    return false;
+                }
+            }
+            else if ('field' === tagName
+                     && (   'text-private' === type
+                         || 'text-single' === type
+                         || 'hidden' === type
+                        )) {
+                conn.register.fields[variable] = value;
+            }
+
+            // ignore other elements (especially x-elements) here
+        }
+
+        conn._changeConnectStatus(Strophe.Status.REGISTER, null);
+        return false;
+    },
+
+    _parseLegacyForm: function(query) {
+        var i, field, conn = this._connection;
+        
         // get required fields
         for (i = 0; i < query.childNodes.length; i++) {
             field = query.childNodes[i];
+
             if (field.tagName.toLowerCase() === 'instructions') {
                 // this is a special element
                 // it provides info about given data fields in a textual way.
                 conn.register.instructions = Strophe.getText(field);
                 continue;
             } else if (field.tagName.toLowerCase() === 'x') {
-                // ignore x for now
+                // ignore x elements here
                 continue;
             }
             conn.register.fields[field.tagName.toLowerCase()] = Strophe.getText(field);
