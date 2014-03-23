@@ -47,6 +47,8 @@ var callback = function (status) {
         connection.authenticate();
     } else if (status === Strophe.Status.CONFLICT) {
         console.log("Contact already existed!");
+    } else if (status === Strophe.Status.REGISTERTIMEOUT) {
+        console.log("Registration form submission timed out.")
     } else if (status === Strophe.Status.NOTACCEPTABLE) {
         console.log("Registration form not properly filled out.")
     } else if (status === Strophe.Status.REGIFAIL) {
