@@ -40,6 +40,7 @@ Strophe.addConnectionPlugin('register', {
         Strophe.Status.REGISTERED      = i + 3;
         Strophe.Status.CONFLICT        = i + 4;
         Strophe.Status.NOTACCEPTABLE   = i + 5;
+        Strophe.Status.REGISTERTIMEOUT = i + 6;
 
         if (conn.disco)
             conn.disco.addFeature(Strophe.NS.REGISTER);
@@ -141,6 +142,7 @@ Strophe.addConnectionPlugin('register', {
         var conn = this._connection;
         this.domain = Strophe.getDomainFromJid(domain);
         this.instructions = "";
+        this._form = null;
         this.fields = {};
         this.registered = false;
 
@@ -195,6 +197,11 @@ Strophe.addConnectionPlugin('register', {
             return;
         }
 
+//        if (register.length === 0) {
+//            conn._changeConnectStatus(Strophe.Status.REGIFAIL, null);
+//            return;
+//        }
+
         // send a get request for registration, to get all required data fields
         conn._addSysHandler(this._get_register_cb.bind(this),
                             null, "iq", null, null);
@@ -209,10 +216,17 @@ Strophe.addConnectionPlugin('register', {
      *    (XMLElement) elem - The query stanza.
      *
      *  Returns:
-     *    false to remove SHOULD contain the registration information currentlSHOULD contain the registration information currentlSHOULD contain the registration information currentlthe handler.
+     *    false (unregister handler)
      */
     _get_register_cb: function (stanza) {
+        
+        this._parseForm(stanza);
+        return false;
+    },
+    
+    _parseForm: function(stanza) {
         var i, query, xElements;
+
         query = stanza.getElementsByTagName("query");
 
         if (query.length !== 1) {
@@ -229,12 +243,16 @@ Strophe.addConnectionPlugin('register', {
         for (i = 0; i < xElements.length; i++) {
             
             if ('jabber:x:data' === xElements[i].getAttribute('xmlns')) {
-                return this._parseXForm(xElements[i]);
+                // Save the form in order to build the answer with it later
+                this._form = xElements[i];
+                this._parseXForm(xElements[i]);
+                return;
             }
         }
-        
+
         // If no jabber:x:data field was found, parse lagacy fields
-        return this._parseLegacyForm(query);
+        this._parseLegacyForm(query);
+        return;
     },
     
     _parseXForm: function(xElement) {
@@ -317,8 +335,121 @@ Strophe.addConnectionPlugin('register', {
      *  and invoke this function to procceed in the registration process.
      */
     submit: function () {
-        var i, name, query, fields, conn = this._connection;
-        query = $iq({type: "set"}).c("query", {xmlns:Strophe.NS.REGISTER});
+
+        var submission = null;
+
+        if (null !== this._form) {
+            submission = this._fillXForm();
+        }
+        else {
+            submission = this._fillLegacyForm();
+        }
+
+        var submissionId = submission.tree().getAttribute('id');
+
+        
+        var timeout = null;
+
+        // Send submission form to server with 60 seconds timeout
+        var handler = this._connection._addSysHandler(
+                function(stanza) {
+                    clearTimeout(timeout);
+                    return this._submit_cb(stanza);
+                }.bind(this),
+                null,
+                "iq",
+                null,
+                submissionId
+        );
+
+        // Set the timeout to 60 seconds
+        timeout = setTimeout(function() {
+            return this._submit_cb(null);
+        }.bind(this), 15000);
+
+        this._connection.send(submission);
+    },
+
+    _fillXForm: function() {
+
+        // Build the basic structure:
+        var submission = $iq(
+            {
+                type: 'set',
+                id: this._connection.getUniqueId('register')
+            }
+        ).c(
+            'query',
+            {
+                xmlns: 'jabber:iq:register'
+            }
+        ).c(
+            'x',
+            {
+                type:   'submit',
+                xmlns:  'jabber:x:data'
+            }
+        );
+
+        // Walk through all fields of the original form and add them to the
+        // submission, filled in.
+        var fields = this._form.getElementsByTagName('field');
+        for (var i = 0; i < fields.length; i++) {
+            var field = fields[i];
+
+            var type = field.hasAttribute('type') ? field.getAttribute('type') : '';
+            var label = field.hasAttribute('label') ? field.getAttribute('label') : '';
+            var variable = field.hasAttribute('var') ? field.getAttribute('var') : '';
+            
+            // Calculate the value for the field. If the field was to be filled
+            // by the user, use that value (may be the default value), otherwise
+            // (e.g. if the field is the form type) use the value from the
+            // original form.
+            var value = '';
+            if (variable in this.fields) {
+                value = this.fields[variable];
+            }
+            else {
+                var valueChildren = field.getElementsByTagName('value');
+                
+                if (0 !== valueChildren.length) {
+                    value = Strophe.getText(valueChildren[0]);
+                }
+            }
+
+            // Add field data:
+            submission.c(
+                'field',
+                {
+                    'type':     type,
+                    'var':      variable,
+                    'label':    label
+                }
+            ).c(
+                'value',
+                {},
+                value
+            );
+
+            // Make <x> element current again:
+            submission.up();
+        }
+
+        return submission;
+    },
+    
+    _fillLegacyForm: function() {
+        var i, name, query, fields;
+        query = $iq(
+        {
+            type: "set",
+            id: this._connection.getUniqueId('register')
+        }).c(
+            "query",
+            {
+                xmlns:Strophe.NS.REGISTER
+            }
+        );
 
         // set required fields
         fields = Object.keys(this.fields);
@@ -327,10 +458,7 @@ Strophe.addConnectionPlugin('register', {
             query.c(name).t(this.fields[name]).up();
         }
 
-        // providing required information
-        conn._addSysHandler(this._submit_cb.bind(this),
-                            null, "iq", null, null);
-        conn.send(query);
+        return query;
     },
 
     /** PrivateFunction: _submit_cb
@@ -343,25 +471,14 @@ Strophe.addConnectionPlugin('register', {
      *    false to remove the handler.
      */
     _submit_cb: function (stanza) {
-        var i, query, field, error = null, conn = this._connection;
+        var error = null, conn = this._connection;
 
-        query = stanza.getElementsByTagName("query");
-        if (query.length > 0) {
-            query = query[0];
-            // update fields
-            for (i = 0; i < query.childNodes.length; i++) {
-                field = query.childNodes[i];
-                if (field.tagName.toLowerCase() === 'instructions') {
-                    // this is a special element
-                    // it provides info about given data fields in a textual way
-                    this.instructions = Strophe.getText(field);
-                    continue;
-                }
-                this.fields[field.tagName.toLowerCase()] = Strophe.getText(field);
-            }
+        if (null === stanza) {
+            Strophe.info("Registration attempt timed out.");
+            
+            conn._changeConnectStatus(Strophe.Status.REGISTERTIMEOUT, "timeout");
         }
-
-        if (stanza.getAttribute("type") === "error") {
+        else if (stanza.getAttribute("type") === "error") {
             error = stanza.getElementsByTagName("error");
             if (error.length !== 1) {
                 conn._changeConnectStatus(Strophe.Status.REGIFAIL, "unknown");
@@ -380,10 +497,12 @@ Strophe.addConnectionPlugin('register', {
                 conn._changeConnectStatus(Strophe.Status.REGIFAIL, error);
             }
         }
+        else {
 
-        Strophe.info("Registered successful.");
+            Strophe.info("Registered successful.");
 
-        conn._changeConnectStatus(Strophe.Status.REGISTERED, null);
+            conn._changeConnectStatus(Strophe.Status.REGISTERED, null);
+        }
 
         return false;
     }
