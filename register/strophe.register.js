@@ -427,12 +427,11 @@ Strophe.addConnectionPlugin('register', {
                 }
             ).c(
                 'value',
-                {},
-                value
-            );
+                {}
+            ).t(value);
 
             // Make <x> element current again:
-            submission.up();
+            submission.up().up();
         }
 
         return submission;
