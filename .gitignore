@@ -1,3 +1,4 @@
 *.min.js
 doc/
 ndproj/
+.idea
