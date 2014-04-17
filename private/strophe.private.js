@@ -123,10 +123,12 @@ Strophe.addConnectionPlugin('private',
    * Returns:
    * (Object) dom - DOM Object
    */
-
   _textToXml: function( text ){
-
     var doc = null;
+
+    if(this._isIE() && this._isPlainText()){
+        return null;
+    }
 
     if( window.DOMParser ){
       var parser = new DOMParser();
@@ -187,6 +189,15 @@ Strophe.addConnectionPlugin('private',
     } else{
       return ( typeof( obj ) === "object" && obj.nodeType === 1 && typeof( obj.nodeName ) === "string" );
     }
+  },
+
+  _isIE : function() {
+    var myNav = navigator.userAgent.toLowerCase();
+    return (myNav.indexOf('msie') != -1) ? parseInt(myNav.split('msie')[1]) : false;
+  },
+
+  _isPlainText : function(text){
+    return !/<[^>]*>((.|[\n\r])*)<\/[^>]+>/.test(text);
   }
 
 });
