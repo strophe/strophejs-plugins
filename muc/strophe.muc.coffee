@@ -74,14 +74,7 @@ Strophe.addConnectionPlugin 'muc',
       if stanza.nodeName is "message"
         handlers = room._message_handlers
       else if stanza.nodeName is "presence"
-        xquery = stanza.getElementsByTagName "x"
-        if xquery.length > 0
-          # Handle only MUC user protocol
-          for x in xquery
-            xmlns = x.getAttribute "xmlns"
-            if xmlns and xmlns.match Strophe.NS.MUC
-              handlers = room._presence_handlers
-              break
+        handlers = room._presence_handlers
 
       # loop over selected handlers (if any) and remove on false
       for id, handler of handlers
