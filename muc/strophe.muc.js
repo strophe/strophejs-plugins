@@ -69,7 +69,7 @@
       if (this._muc_handler == null) {
         this._muc_handler = this._connection.addHandler((function(_this) {
           return function(stanza) {
-            var from, handler, handlers, id, roomname, x, xmlns, xquery, _i, _len;
+            var from, handler, handlers, id, roomname;
             from = stanza.getAttribute('from');
             if (!from) {
               return true;
@@ -83,17 +83,7 @@
             if (stanza.nodeName === "message") {
               handlers = room._message_handlers;
             } else if (stanza.nodeName === "presence") {
-              xquery = stanza.getElementsByTagName("x");
-              if (xquery.length > 0) {
-                for (_i = 0, _len = xquery.length; _i < _len; _i++) {
-                  x = xquery[_i];
-                  xmlns = x.getAttribute("xmlns");
-                  if (xmlns && xmlns.match(Strophe.NS.MUC)) {
-                    handlers = room._presence_handlers;
-                    break;
-                  }
-                }
-              }
+              handlers = room._presence_handlers;
             }
             for (id in handlers) {
               handler = handlers[id];
