@@ -9,14 +9,16 @@
 
 Strophe.addConnectionPlugin 'muc',
   _connection: null
-  rooms: {}
-  roomNames: []
+  rooms: null
+  roomNames: null
 
   ###Function
   Initialize the MUC plugin. Sets the correct connection object and
   extends the namesace.
   ###
   init: (conn) ->
+    @rooms = {}
+    @roomNames = []
     @_connection = conn
     @_muc_handler = null
     # extend name space
